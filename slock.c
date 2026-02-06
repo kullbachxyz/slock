@@ -57,6 +57,8 @@ struct displayData{
 	cairo_surface_t **surfaces;
 };
 static pthread_mutex_t mutex= PTHREAD_MUTEX_INITIALIZER;
+static volatile unsigned int g_pwlen = 0;
+static volatile unsigned int g_color = 0; /* 0=INIT, 1=INPUT, 2=FAILED */
 #include "config.h"
 
 Imlib_Image image;
@@ -152,8 +154,50 @@ refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cair
 	cairo_text_extents(cr, tm, &extents);
 	xpos=(DisplayWidth(dpy, screen) - extents.width) / 2 - extents.x_bearing;
 	ypos=(DisplayHeight(dpy, screen) - extents.height) / 2 - extents.y_bearing;
+	/* Draw padlock icon above the time */
+	cairo_text_extents_t lockext;
+	cairo_set_font_size(cr, locksize);
+	cairo_text_extents(cr, locktext, &lockext);
+	double lockx = (DisplayWidth(dpy, screen) - lockext.width) / 2 - lockext.x_bearing;
+	double locky = ypos - extents.height - lockoffset;
+	cairo_move_to(cr, lockx, locky);
+	cairo_show_text(cr, locktext);
+
+	/* Draw time */
+	cairo_set_font_size(cr, textsize);
 	cairo_move_to(cr, xpos, ypos);
 	cairo_show_text(cr, tm);
+
+	/* Draw password dots below the time */
+	unsigned int pwlen = g_pwlen;
+	if (pwlen > 0) {
+		double totalw = pwlen * dotradius * 2 + (pwlen - 1) * dotspacing;
+		double dx = (DisplayWidth(dpy, screen) - totalw) / 2 + dotradius;
+		double dy = ypos + extents.height / 2 + dotradius * 2 + dotoffset;
+
+		/* Semi-transparent background behind dots */
+		double bgx = dx - dotradius - dotbgpadx;
+		double bgy = dy - dotradius - dotbgpady;
+		double bgw = totalw + dotbgpadx * 2;
+		double bgh = dotradius * 2 + dotbgpady * 2;
+		double r = dotbgradius;
+		cairo_new_path(cr);
+		cairo_arc(cr, bgx + r, bgy + r, r, 3.14159265, 1.5 * 3.14159265);
+		cairo_arc(cr, bgx + bgw - r, bgy + r, r, 1.5 * 3.14159265, 2 * 3.14159265);
+		cairo_arc(cr, bgx + bgw - r, bgy + bgh - r, r, 0, 0.5 * 3.14159265);
+		cairo_arc(cr, bgx + r, bgy + bgh - r, r, 0.5 * 3.14159265, 3.14159265);
+		cairo_close_path(cr);
+		cairo_set_source_rgba(cr, 0, 0, 0, dotbgalpha);
+		cairo_fill(cr);
+
+		/* Dots */
+		cairo_set_source_rgb(cr, dotcolor[0], dotcolor[1], dotcolor[2]);
+		for (unsigned int i = 0; i < pwlen; i++) {
+			cairo_arc(cr, dx + i * (dotradius * 2 + dotspacing), dy, dotradius, 0, 2 * 3.14159265);
+			cairo_fill(cr);
+		}
+	}
+
 	cairo_surface_flush(sfc);
 	XFlush(dpy);
 }
@@ -243,18 +287,19 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				break;
 			}
 			color = len ? INPUT : ((failure || failonclear) ? FAILED : INIT);
-			if (running && oldc != color) {
-				pthread_mutex_lock(&mutex); /*Stop the time refresh thread from interfering*/
+			g_pwlen = len;
+			g_color = color;
+			if (running) {
+				pthread_mutex_lock(&mutex);
 				for (screen = 0; screen < nscreens; screen++) {
                     if(locks[screen]->bgmap)
                         XSetWindowBackgroundPixmap(dpy, locks[screen]->win, locks[screen]->bgmap);
                     else
-                        XSetWindowBackground(dpy, locks[screen]->win, locks[screen]->colors[0]);
+                        XSetWindowBackground(dpy, locks[screen]->win, locks[screen]->colors[color]);
 					XClearWindow(dpy, locks[screen]->win);
 					time_t rawtime;
 					time(&rawtime);
 					refresh(dpy, locks[screen]->win,locks[screen]->screen, *localtime(&rawtime),crs[screen],surfaces[screen]);
-					/*Redraw the time after screen cleared*/
 				}
 				pthread_mutex_unlock(&mutex);
 				oldc = color;

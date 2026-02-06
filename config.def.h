@@ -17,6 +17,22 @@ static const char *colorname[NUMCOLS] = {
 /* treat a cleared input like a wrong password (color) */
 static const int failonclear = 1;
 
+/*Lock indicator (Nerd Font padlock) */
+static const char* locktext="\xf3\xb0\x8c\xbe"; /* 󰌾 nf-md-lock */
+static const float locksize=32.0;
+static const double lockoffset=20.0;
+
+/*Dot indicator settings*/
+static const double dotradius=4.0;
+static const double dotspacing=8.0;
+static const double dotoffset=20.0;
+static const double dotbgpadx=12.0;
+static const double dotbgpady=8.0;
+static const double dotbgradius=8.0;
+static const double dotbgalpha=0.4;
+static const double dotcolorinput[]={0.0, 0.33, 0.47};  /* #005577 */
+static const double dotcolorfailed[]={0.8, 0.2, 0.2};   /* #CC3333 */
+
 /*Enable blur*/
 #define BLUR
 /*Set blur radius*/
