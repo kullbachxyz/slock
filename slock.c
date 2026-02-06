@@ -17,6 +17,7 @@
 #include <spawn.h>
 #include <sys/types.h>
 #include <X11/extensions/Xrandr.h>
+#include <X11/XKBlib.h>
 #include <X11/keysym.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -219,6 +220,23 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 			cairo_arc(cr, dx + i * (dotradius * 2 + dotspacing), dy, dotradius, 0, 2 * 3.14159265);
 			cairo_fill(cr);
 		}
+	}
+
+	/* Caps Lock indicator */
+	unsigned int capsstate = 0;
+	XkbGetIndicatorState(dpy, XkbUseCoreKbd, &capsstate);
+	if (capsstate & 1) {
+		cairo_text_extents_t capsext;
+		cairo_set_font_size(cr, capssize);
+		cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+		cairo_text_extents(cr, capstext, &capsext);
+		double capsx = (DisplayWidth(dpy, screen) - capsext.width) / 2 - capsext.x_bearing + xoff;
+		double capsy = datey + dateext.height + capsoffset + capsext.height;
+		if (pwlen > 0)
+			capsy = datey + dateext.height + dotradius * 2 + dotoffset + dotbgpady * 2 + capsoffset + capsext.height;
+		cairo_set_source_rgba(cr, capscolor[0], capscolor[1], capscolor[2], alpha);
+		cairo_move_to(cr, capsx, capsy);
+		cairo_show_text(cr, capstext);
 	}
 
 	cairo_surface_flush(sfc);

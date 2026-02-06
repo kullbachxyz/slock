@@ -17,6 +17,12 @@ static const char *colorname[NUMCOLS] = {
 /* treat a cleared input like a wrong password (color) */
 static const int failonclear = 1;
 
+/*Caps Lock indicator*/
+static const char* capstext="\xf3\xb0\xa0\xaa Caps Lock"; /* 󰠪 nf-md-apple_keyboard_caps */
+static const float capssize=18.0;
+static const double capsoffset=16.0;
+static const double capscolor[]={1.0, 0.8, 0.2}; /* amber/yellow */
+
 /*Wrong password shake + flash*/
 static const int shakeamplitude=20;
 static const int shakecycles=3;
