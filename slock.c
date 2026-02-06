@@ -250,36 +250,19 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 	XFlush(dpy);
 }
 static void
-shakescreen(Display *dpy, struct lock **locks, int nscreens, cairo_t **crs, cairo_surface_t **surfaces)
+flashscreen(Display *dpy, struct lock **locks, int nscreens, cairo_t **crs, cairo_surface_t **surfaces)
 {
-	int totalframes = shakecycles * 2 * 2; /* 2 directions per cycle, 2 frames per direction */
-	int framems = shakedurationms / totalframes;
 	time_t rawtime;
 	time(&rawtime);
 	struct tm tm = *localtime(&rawtime);
-	for (int f = 0; f < totalframes; f++) {
-		/* Sine-like oscillation: amplitude * sin(progress * cycles * 2pi) */
-		double progress = (double)f / totalframes;
-		double sine = 0;
-		/* Approximate sin with a triangle wave for simplicity */
-		double phase = progress * shakecycles * 2;
-		int ip = (int)phase % 2;
-		double frac = phase - (int)phase;
-		sine = ip ? (1.0 - frac) : frac;
-		sine = (sine * 2 - 1) * shakeamplitude;
-		/* Fade red to white over the animation */
-		double t = progress;
-		double r = shakecolor[0] * (1 - t) + textcolorred * t;
-		double g = shakecolor[1] * (1 - t) + textcolorgreen * t;
-		double b = shakecolor[2] * (1 - t) + textcolorblue * t;
-		for (int k = 0; k < nscreens; k++) {
-			if(locks[k]->bgmap)
-				XSetWindowBackgroundPixmap(dpy, locks[k]->win, locks[k]->bgmap);
-			refreshex(dpy, locks[k]->win, locks[k]->screen, tm, crs[k], surfaces[k], 1.0, (int)sine, r, g, b);
-		}
-		usleep(framems * 1000);
+	/* Flash red */
+	for (int k = 0; k < nscreens; k++) {
+		if(locks[k]->bgmap)
+			XSetWindowBackgroundPixmap(dpy, locks[k]->win, locks[k]->bgmap);
+		refreshex(dpy, locks[k]->win, locks[k]->screen, tm, crs[k], surfaces[k], 1.0, 0, flashcolor[0], flashcolor[1], flashcolor[2]);
 	}
-	/* Final frame: settled, normal colors */
+	usleep(flashdurationms * 1000);
+	/* Back to normal */
 	for (int k = 0; k < nscreens; k++) {
 		if(locks[k]->bgmap)
 			XSetWindowBackgroundPixmap(dpy, locks[k]->win, locks[k]->bgmap);
@@ -351,7 +334,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 					XBell(dpy, 100);
 					failure = 1;
 					pthread_mutex_lock(&mutex);
-					shakescreen(dpy, locks, nscreens, crs, surfaces);
+					flashscreen(dpy, locks, nscreens, crs, surfaces);
 					pthread_mutex_unlock(&mutex);
 				}
 				explicit_bzero(&passwd, sizeof(passwd));

@@ -23,11 +23,9 @@ static const float capssize=18.0;
 static const double capsoffset=16.0;
 static const double capscolor[]={1.0, 0.8, 0.2}; /* amber/yellow */
 
-/*Wrong password shake + flash*/
-static const int shakeamplitude=20;
-static const int shakecycles=3;
-static const int shakedurationms=400;
-static const double shakecolor[]={0.8, 0.2, 0.2}; /* red */
+/*Wrong password flash*/
+static const int flashdurationms=300;
+static const double flashcolor[]={0.8, 0.2, 0.2}; /* red */
 
 /*Date settings*/
 static const float datesize=24.0;
