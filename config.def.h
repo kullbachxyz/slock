@@ -18,7 +18,7 @@ static const char *colorname[NUMCOLS] = {
 static const int failonclear = 1;
 
 /*Caps Lock indicator*/
-static const char* capstext="\xf3\xb0\xa0\xaa Caps Lock"; /* 󰠪 nf-md-apple_keyboard_caps */
+static const char* capstext="Caps Lock";
 static const float capssize=18.0;
 static const double capsoffset=16.0;
 static const double capscolor[]={1.0, 0.8, 0.2}; /* amber/yellow */
@@ -41,6 +41,12 @@ static const double dateoffset=12.0;
 static const char* locktext="\xf3\xb0\x8c\xbe"; /* 󰌾 nf-md-lock */
 static const float locksize=32.0;
 static const double lockoffset=20.0;
+
+/*Main UI background*/
+static const double uibgpadx=40.0;
+static const double uibgpady=30.0;
+static const double uibgradius=16.0;
+static const double uibgalpha=0.35;
 
 /*Dot indicator settings*/
 static const double dotradius=4.0;

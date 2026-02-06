@@ -153,22 +153,61 @@ static void
 refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cairo_surface_t* sfc, double alpha, int xoff, double cr_, double cg, double cb)
 {/*Function that displays given time on the given screen*/
 	static char tm[24]="";
-	cairo_text_extents_t extents;
-	int xpos,ypos;
+	static char datebuf[64]="";
+	static const char *daynames[] = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
+	static const char *monthnames[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
+	cairo_text_extents_t extents, lockext, dateext, capsext;
+	int xpos, ypos, sw = DisplayWidth(dpy, screen);
+	unsigned int pwlen = g_pwlen;
+	unsigned int capsstate = 0;
+	XkbGetIndicatorState(dpy, XkbUseCoreKbd, &capsstate);
+	int hascaps = capsstate & 1;
+
 	sprintf(tm,"%02d:%02d",time.tm_hour,time.tm_min);
+	sprintf(datebuf,"%s, %d %s",daynames[time.tm_wday],time.tm_mday,monthnames[time.tm_mon]);
+
 	XClearWindow(dpy, win);
-	cairo_set_source_rgba(cr, cr_, cg, cb, alpha);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+
+	/* Measure all elements to compute bounding box */
 	cairo_set_font_size(cr, textsize);
 	cairo_text_extents(cr, tm, &extents);
-	xpos=(DisplayWidth(dpy, screen) - extents.width) / 2 - extents.x_bearing + xoff;
-	ypos=(DisplayHeight(dpy, screen) - extents.height) / 2 - extents.y_bearing;
-	/* Draw padlock icon above the time */
-	cairo_text_extents_t lockext;
+	xpos = (sw - extents.width) / 2 - extents.x_bearing + xoff;
+	ypos = (DisplayHeight(dpy, screen) - extents.height) / 2 - extents.y_bearing;
+
 	cairo_set_font_size(cr, locksize);
 	cairo_text_extents(cr, locktext, &lockext);
-	double lockx = (DisplayWidth(dpy, screen) - lockext.width) / 2 - lockext.x_bearing + xoff;
 	double locky = ypos - extents.height - lockoffset;
+
+	cairo_set_font_size(cr, datesize);
+	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_text_extents(cr, datebuf, &dateext);
+	double datey = ypos + dateoffset + dateext.height;
+
+	/* Compute element positions */
+	double doty = 0;
+	if (pwlen > 0)
+		doty = datey + dateext.height + dotradius * 2 + dotoffset;
+	double capsy = 0;
+	if (hascaps) {
+		cairo_set_font_size(cr, capssize);
+		cairo_text_extents(cr, capstext, &capsext);
+		if (pwlen > 0)
+			capsy = doty + dotradius + dotbgpady + capsoffset + capsext.height;
+		else
+			capsy = datey + dateext.height + capsoffset + capsext.height;
+	}
+
+	/* Draw fullscreen overlay */
+	cairo_rectangle(cr, 0, 0, sw, DisplayHeight(dpy, screen));
+	cairo_set_source_rgba(cr, 0, 0, 0, uibgalpha * alpha);
+	cairo_fill(cr);
+
+	/* Draw padlock icon */
+	cairo_set_source_rgba(cr, cr_, cg, cb, alpha);
+	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
+	cairo_set_font_size(cr, locksize);
+	double lockx = (sw - lockext.width) / 2 - lockext.x_bearing + xoff;
 	cairo_move_to(cr, lockx, locky);
 	cairo_show_text(cr, locktext);
 
@@ -177,64 +216,32 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 	cairo_move_to(cr, xpos, ypos);
 	cairo_show_text(cr, tm);
 
-	/* Draw date below the time */
-	static const char *daynames[] = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
-	static const char *monthnames[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
-	static char datebuf[64]="";
-	sprintf(datebuf,"%s, %d %s",daynames[time.tm_wday],time.tm_mday,monthnames[time.tm_mon]);
-	cairo_text_extents_t dateext;
+	/* Draw date */
 	cairo_set_font_size(cr, datesize);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_set_source_rgba(cr, cr_, cg, cb, alpha * 0.7);
-	cairo_text_extents(cr, datebuf, &dateext);
-	double datex = (DisplayWidth(dpy, screen) - dateext.width) / 2 - dateext.x_bearing + xoff;
-	double datey = ypos + dateoffset + dateext.height;
+	double datex = (sw - dateext.width) / 2 - dateext.x_bearing + xoff;
 	cairo_move_to(cr, datex, datey);
 	cairo_show_text(cr, datebuf);
 
-	/* Draw password dots below the time */
-	unsigned int pwlen = g_pwlen;
+	/* Draw password dots */
 	if (pwlen > 0) {
 		double totalw = pwlen * dotradius * 2 + (pwlen - 1) * dotspacing;
-		double dx = (DisplayWidth(dpy, screen) - totalw) / 2 + dotradius + xoff;
-		double dy = datey + dateext.height + dotradius * 2 + dotoffset;
+		double dx = (sw - totalw) / 2 + dotradius + xoff;
 
-		/* Semi-transparent background behind dots */
-		double bgx = dx - dotradius - dotbgpadx;
-		double bgy = dy - dotradius - dotbgpady;
-		double bgw = totalw + dotbgpadx * 2;
-		double bgh = dotradius * 2 + dotbgpady * 2;
-		double r = dotbgradius;
-		cairo_new_path(cr);
-		cairo_arc(cr, bgx + r, bgy + r, r, 3.14159265, 1.5 * 3.14159265);
-		cairo_arc(cr, bgx + bgw - r, bgy + r, r, 1.5 * 3.14159265, 2 * 3.14159265);
-		cairo_arc(cr, bgx + bgw - r, bgy + bgh - r, r, 0, 0.5 * 3.14159265);
-		cairo_arc(cr, bgx + r, bgy + bgh - r, r, 0.5 * 3.14159265, 3.14159265);
-		cairo_close_path(cr);
-		cairo_set_source_rgba(cr, 0, 0, 0, dotbgalpha * alpha);
-		cairo_fill(cr);
-
-		/* Dots */
 		cairo_set_source_rgba(cr, dotcolor[0], dotcolor[1], dotcolor[2], alpha);
 		for (unsigned int i = 0; i < pwlen; i++) {
-			cairo_arc(cr, dx + i * (dotradius * 2 + dotspacing), dy, dotradius, 0, 2 * 3.14159265);
+			cairo_arc(cr, dx + i * (dotradius * 2 + dotspacing), doty, dotradius, 0, 2 * 3.14159265);
 			cairo_fill(cr);
 		}
 	}
 
 	/* Caps Lock indicator */
-	unsigned int capsstate = 0;
-	XkbGetIndicatorState(dpy, XkbUseCoreKbd, &capsstate);
-	if (capsstate & 1) {
-		cairo_text_extents_t capsext;
+	if (hascaps) {
 		cairo_set_font_size(cr, capssize);
 		cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-		cairo_text_extents(cr, capstext, &capsext);
-		double capsx = (DisplayWidth(dpy, screen) - capsext.width) / 2 - capsext.x_bearing + xoff;
-		double capsy = datey + dateext.height + capsoffset + capsext.height;
-		if (pwlen > 0)
-			capsy = datey + dateext.height + dotradius * 2 + dotoffset + dotbgpady * 2 + capsoffset + capsext.height;
 		cairo_set_source_rgba(cr, capscolor[0], capscolor[1], capscolor[2], alpha);
+		double capsx = (sw - capsext.width) / 2 - capsext.x_bearing + xoff;
 		cairo_move_to(cr, capsx, capsy);
 		cairo_show_text(cr, capstext);
 	}
@@ -310,7 +317,7 @@ displayTime(void* input)
 	 refresh(displayData->dpy, displayData->locks[k]->win, displayData->locks[k]->screen, tm,displayData->crs[k],displayData->surfaces[k], 1.0);
 	 }
  pthread_mutex_unlock(&mutex);
- sleep(5);
+ sleep(1);
  }
  return NULL;
 }
