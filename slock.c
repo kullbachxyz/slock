@@ -291,23 +291,7 @@ displayTime(void* input)
 { /*Thread that keeps track of time and refreshes it every 5 seconds */
  struct displayData* displayData=(struct displayData*)input;
 
- /* Fade-in animation */
- int steps = fadesteps;
- int stepms = fadedurationms / steps;
- for (int s = 1; s <= steps; s++) {
-	double alpha = (double)s / steps;
-	pthread_mutex_lock(&mutex);
-	time_t rawtime;
-	time(&rawtime);
-	struct tm tm = *localtime(&rawtime);
-	for (int k=0;k<displayData->nscreens;k++){
-		refresh(displayData->dpy, displayData->locks[k]->win, displayData->locks[k]->screen, tm,displayData->crs[k],displayData->surfaces[k], alpha);
-	}
-	pthread_mutex_unlock(&mutex);
-	usleep(stepms * 1000);
- }
-
- /* Normal refresh loop */
+ /* Refresh loop */
  while (1){
  pthread_mutex_lock(&mutex);
  time_t rawtime;

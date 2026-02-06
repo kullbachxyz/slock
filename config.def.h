@@ -29,10 +29,6 @@ static const int shakecycles=3;
 static const int shakedurationms=400;
 static const double shakecolor[]={0.8, 0.2, 0.2}; /* red */
 
-/*Fade-in animation*/
-static const int fadedurationms=600;
-static const int fadesteps=30;
-
 /*Date settings*/
 static const float datesize=24.0;
 static const double dateoffset=12.0;
