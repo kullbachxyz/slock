@@ -17,6 +17,10 @@ static const char *colorname[NUMCOLS] = {
 /* treat a cleared input like a wrong password (color) */
 static const int failonclear = 1;
 
+/*Fade-in animation*/
+static const int fadedurationms=600;
+static const int fadesteps=30;
+
 /*Lock indicator (Nerd Font padlock) */
 static const char* locktext="\xf3\xb0\x8c\xbe"; /* 󰌾 nf-md-lock */
 static const float locksize=32.0;

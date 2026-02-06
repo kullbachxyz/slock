@@ -141,14 +141,14 @@ gethash(void)
 	return hash;
 }
 static void
-refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cairo_surface_t* sfc)
+refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cairo_surface_t* sfc, double alpha)
 {/*Function that displays given time on the given screen*/
 	static char tm[24]="";
 	cairo_text_extents_t extents;
 	int xpos,ypos;
 	sprintf(tm,"%02d:%02d",time.tm_hour,time.tm_min);
 	XClearWindow(dpy, win);
-	cairo_set_source_rgb(cr, textcolorred, textcolorgreen, textcolorblue);
+	cairo_set_source_rgba(cr, textcolorred, textcolorgreen, textcolorblue, alpha);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 	cairo_set_font_size(cr, textsize);
 	cairo_text_extents(cr, tm, &extents);
@@ -187,11 +187,11 @@ refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cair
 		cairo_arc(cr, bgx + bgw - r, bgy + bgh - r, r, 0, 0.5 * 3.14159265);
 		cairo_arc(cr, bgx + r, bgy + bgh - r, r, 0.5 * 3.14159265, 3.14159265);
 		cairo_close_path(cr);
-		cairo_set_source_rgba(cr, 0, 0, 0, dotbgalpha);
+		cairo_set_source_rgba(cr, 0, 0, 0, dotbgalpha * alpha);
 		cairo_fill(cr);
 
 		/* Dots */
-		cairo_set_source_rgb(cr, dotcolor[0], dotcolor[1], dotcolor[2]);
+		cairo_set_source_rgba(cr, dotcolor[0], dotcolor[1], dotcolor[2], alpha);
 		for (unsigned int i = 0; i < pwlen; i++) {
 			cairo_arc(cr, dx + i * (dotradius * 2 + dotspacing), dy, dotradius, 0, 2 * 3.14159265);
 			cairo_fill(cr);
@@ -205,13 +205,31 @@ static void*
 displayTime(void* input)
 { /*Thread that keeps track of time and refreshes it every 5 seconds */
  struct displayData* displayData=(struct displayData*)input;
+
+ /* Fade-in animation */
+ int steps = fadesteps;
+ int stepms = fadedurationms / steps;
+ for (int s = 1; s <= steps; s++) {
+	double alpha = (double)s / steps;
+	pthread_mutex_lock(&mutex);
+	time_t rawtime;
+	time(&rawtime);
+	struct tm tm = *localtime(&rawtime);
+	for (int k=0;k<displayData->nscreens;k++){
+		refresh(displayData->dpy, displayData->locks[k]->win, displayData->locks[k]->screen, tm,displayData->crs[k],displayData->surfaces[k], alpha);
+	}
+	pthread_mutex_unlock(&mutex);
+	usleep(stepms * 1000);
+ }
+
+ /* Normal refresh loop */
  while (1){
- pthread_mutex_lock(&mutex); /*Mutex to prevent interference with refreshing screen while typing password*/
+ pthread_mutex_lock(&mutex);
  time_t rawtime;
  time(&rawtime);
  struct tm tm = *localtime(&rawtime);
  for (int k=0;k<displayData->nscreens;k++){
-	 refresh(displayData->dpy, displayData->locks[k]->win, displayData->locks[k]->screen, tm,displayData->crs[k],displayData->surfaces[k]);
+	 refresh(displayData->dpy, displayData->locks[k]->win, displayData->locks[k]->screen, tm,displayData->crs[k],displayData->surfaces[k], 1.0);
 	 }
  pthread_mutex_unlock(&mutex);
  sleep(5);
@@ -299,7 +317,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 					XClearWindow(dpy, locks[screen]->win);
 					time_t rawtime;
 					time(&rawtime);
-					refresh(dpy, locks[screen]->win,locks[screen]->screen, *localtime(&rawtime),crs[screen],surfaces[screen]);
+					refresh(dpy, locks[screen]->win,locks[screen]->screen, *localtime(&rawtime),crs[screen],surfaces[screen], 1.0);
 				}
 				pthread_mutex_unlock(&mutex);
 				oldc = color;
