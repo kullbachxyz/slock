@@ -168,12 +168,27 @@ refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cair
 	cairo_move_to(cr, xpos, ypos);
 	cairo_show_text(cr, tm);
 
+	/* Draw date below the time */
+	static const char *daynames[] = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
+	static const char *monthnames[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
+	static char datebuf[64]="";
+	sprintf(datebuf,"%s, %d %s",daynames[time.tm_wday],time.tm_mday,monthnames[time.tm_mon]);
+	cairo_text_extents_t dateext;
+	cairo_set_font_size(cr, datesize);
+	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
+	cairo_set_source_rgba(cr, textcolorred, textcolorgreen, textcolorblue, alpha * 0.7);
+	cairo_text_extents(cr, datebuf, &dateext);
+	double datex = (DisplayWidth(dpy, screen) - dateext.width) / 2 - dateext.x_bearing;
+	double datey = ypos + dateoffset + dateext.height;
+	cairo_move_to(cr, datex, datey);
+	cairo_show_text(cr, datebuf);
+
 	/* Draw password dots below the time */
 	unsigned int pwlen = g_pwlen;
 	if (pwlen > 0) {
 		double totalw = pwlen * dotradius * 2 + (pwlen - 1) * dotspacing;
 		double dx = (DisplayWidth(dpy, screen) - totalw) / 2 + dotradius;
-		double dy = ypos + extents.height / 2 + dotradius * 2 + dotoffset;
+		double dy = datey + dateext.height + dotradius * 2 + dotoffset;
 
 		/* Semi-transparent background behind dots */
 		double bgx = dx - dotradius - dotbgpadx;
