@@ -17,6 +17,12 @@ static const char *colorname[NUMCOLS] = {
 /* treat a cleared input like a wrong password (color) */
 static const int failonclear = 1;
 
+/*Wrong password shake + flash*/
+static const int shakeamplitude=20;
+static const int shakecycles=3;
+static const int shakedurationms=400;
+static const double shakecolor[]={0.8, 0.2, 0.2}; /* red */
+
 /*Fade-in animation*/
 static const int fadedurationms=600;
 static const int fadesteps=30;

@@ -63,6 +63,8 @@ static volatile unsigned int g_color = 0; /* 0=INIT, 1=INPUT, 2=FAILED */
 
 Imlib_Image image;
 
+static void refreshex(Display *dpy, Window win, int screen, struct tm time, cairo_t *cr, cairo_surface_t *sfc, double alpha, int xoff, double cr_, double cg, double cb);
+
 static void
 die(const char *errstr, ...)
 {
@@ -142,23 +144,29 @@ gethash(void)
 }
 static void
 refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cairo_surface_t* sfc, double alpha)
+{
+	refreshex(dpy, win, screen, time, cr, sfc, alpha, 0, textcolorred, textcolorgreen, textcolorblue);
+}
+
+static void
+refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cairo_surface_t* sfc, double alpha, int xoff, double cr_, double cg, double cb)
 {/*Function that displays given time on the given screen*/
 	static char tm[24]="";
 	cairo_text_extents_t extents;
 	int xpos,ypos;
 	sprintf(tm,"%02d:%02d",time.tm_hour,time.tm_min);
 	XClearWindow(dpy, win);
-	cairo_set_source_rgba(cr, textcolorred, textcolorgreen, textcolorblue, alpha);
+	cairo_set_source_rgba(cr, cr_, cg, cb, alpha);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 	cairo_set_font_size(cr, textsize);
 	cairo_text_extents(cr, tm, &extents);
-	xpos=(DisplayWidth(dpy, screen) - extents.width) / 2 - extents.x_bearing;
+	xpos=(DisplayWidth(dpy, screen) - extents.width) / 2 - extents.x_bearing + xoff;
 	ypos=(DisplayHeight(dpy, screen) - extents.height) / 2 - extents.y_bearing;
 	/* Draw padlock icon above the time */
 	cairo_text_extents_t lockext;
 	cairo_set_font_size(cr, locksize);
 	cairo_text_extents(cr, locktext, &lockext);
-	double lockx = (DisplayWidth(dpy, screen) - lockext.width) / 2 - lockext.x_bearing;
+	double lockx = (DisplayWidth(dpy, screen) - lockext.width) / 2 - lockext.x_bearing + xoff;
 	double locky = ypos - extents.height - lockoffset;
 	cairo_move_to(cr, lockx, locky);
 	cairo_show_text(cr, locktext);
@@ -176,9 +184,9 @@ refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cair
 	cairo_text_extents_t dateext;
 	cairo_set_font_size(cr, datesize);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
-	cairo_set_source_rgba(cr, textcolorred, textcolorgreen, textcolorblue, alpha * 0.7);
+	cairo_set_source_rgba(cr, cr_, cg, cb, alpha * 0.7);
 	cairo_text_extents(cr, datebuf, &dateext);
-	double datex = (DisplayWidth(dpy, screen) - dateext.width) / 2 - dateext.x_bearing;
+	double datex = (DisplayWidth(dpy, screen) - dateext.width) / 2 - dateext.x_bearing + xoff;
 	double datey = ypos + dateoffset + dateext.height;
 	cairo_move_to(cr, datex, datey);
 	cairo_show_text(cr, datebuf);
@@ -187,7 +195,7 @@ refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cair
 	unsigned int pwlen = g_pwlen;
 	if (pwlen > 0) {
 		double totalw = pwlen * dotradius * 2 + (pwlen - 1) * dotspacing;
-		double dx = (DisplayWidth(dpy, screen) - totalw) / 2 + dotradius;
+		double dx = (DisplayWidth(dpy, screen) - totalw) / 2 + dotradius + xoff;
 		double dy = datey + dateext.height + dotradius * 2 + dotoffset;
 
 		/* Semi-transparent background behind dots */
@@ -215,6 +223,43 @@ refresh(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, cair
 
 	cairo_surface_flush(sfc);
 	XFlush(dpy);
+}
+static void
+shakescreen(Display *dpy, struct lock **locks, int nscreens, cairo_t **crs, cairo_surface_t **surfaces)
+{
+	int totalframes = shakecycles * 2 * 2; /* 2 directions per cycle, 2 frames per direction */
+	int framems = shakedurationms / totalframes;
+	time_t rawtime;
+	time(&rawtime);
+	struct tm tm = *localtime(&rawtime);
+	for (int f = 0; f < totalframes; f++) {
+		/* Sine-like oscillation: amplitude * sin(progress * cycles * 2pi) */
+		double progress = (double)f / totalframes;
+		double sine = 0;
+		/* Approximate sin with a triangle wave for simplicity */
+		double phase = progress * shakecycles * 2;
+		int ip = (int)phase % 2;
+		double frac = phase - (int)phase;
+		sine = ip ? (1.0 - frac) : frac;
+		sine = (sine * 2 - 1) * shakeamplitude;
+		/* Fade red to white over the animation */
+		double t = progress;
+		double r = shakecolor[0] * (1 - t) + textcolorred * t;
+		double g = shakecolor[1] * (1 - t) + textcolorgreen * t;
+		double b = shakecolor[2] * (1 - t) + textcolorblue * t;
+		for (int k = 0; k < nscreens; k++) {
+			if(locks[k]->bgmap)
+				XSetWindowBackgroundPixmap(dpy, locks[k]->win, locks[k]->bgmap);
+			refreshex(dpy, locks[k]->win, locks[k]->screen, tm, crs[k], surfaces[k], 1.0, (int)sine, r, g, b);
+		}
+		usleep(framems * 1000);
+	}
+	/* Final frame: settled, normal colors */
+	for (int k = 0; k < nscreens; k++) {
+		if(locks[k]->bgmap)
+			XSetWindowBackgroundPixmap(dpy, locks[k]->win, locks[k]->bgmap);
+		refresh(dpy, locks[k]->win, locks[k]->screen, tm, crs[k], surfaces[k], 1.0);
+	}
 }
 static void*
 displayTime(void* input)
@@ -296,6 +341,9 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 				if (running) {
 					XBell(dpy, 100);
 					failure = 1;
+					pthread_mutex_lock(&mutex);
+					shakescreen(dpy, locks, nscreens, crs, surfaces);
+					pthread_mutex_unlock(&mutex);
 				}
 				explicit_bzero(&passwd, sizeof(passwd));
 				len = 0;
