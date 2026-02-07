@@ -31,10 +31,6 @@ static const double flashcolor[]={0.8, 0.2, 0.2}; /* red */
 static const float datesize=24.0;
 static const double dateoffset=12.0;
 
-/*Lock indicator (Nerd Font padlock) */
-static const char* locktext="";
-static const float locksize=32.0;
-static const double lockoffset=20.0;
 
 /*Main UI background*/
 static const double uibgpadx=40.0;

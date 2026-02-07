@@ -156,7 +156,7 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 	static char datebuf[64]="";
 	static const char *daynames[] = {"Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"};
 	static const char *monthnames[] = {"January","February","March","April","May","June","July","August","September","October","November","December"};
-	cairo_text_extents_t extents, lockext, dateext, capsext;
+	cairo_text_extents_t extents, dateext, capsext;
 	int xpos, ypos, sw = DisplayWidth(dpy, screen);
 	unsigned int pwlen = g_pwlen;
 	unsigned int capsstate = 0;
@@ -174,10 +174,6 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 	cairo_text_extents(cr, tm, &extents);
 	xpos = (sw - extents.width) / 2 - extents.x_bearing + xoff;
 	ypos = (DisplayHeight(dpy, screen) - extents.height) / 2 - extents.y_bearing;
-
-	cairo_set_font_size(cr, locksize);
-	cairo_text_extents(cr, locktext, &lockext);
-	double locky = ypos - extents.height - lockoffset;
 
 	cairo_set_font_size(cr, datesize);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
@@ -203,15 +199,8 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 	cairo_set_source_rgba(cr, 0, 0, 0, uibgalpha * alpha);
 	cairo_fill(cr);
 
-	/* Draw padlock icon */
-	cairo_set_source_rgba(cr, cr_, cg, cb, alpha);
-	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
-	cairo_set_font_size(cr, locksize);
-	double lockx = (sw - lockext.width) / 2 - lockext.x_bearing + xoff;
-	cairo_move_to(cr, lockx, locky);
-	cairo_show_text(cr, locktext);
-
 	/* Draw time */
+	cairo_set_source_rgba(cr, cr_, cg, cb, alpha);
 	cairo_set_font_size(cr, textsize);
 	cairo_move_to(cr, xpos, ypos);
 	cairo_show_text(cr, tm);
