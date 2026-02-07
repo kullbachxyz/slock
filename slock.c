@@ -285,7 +285,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 {
 	XRRScreenChangeNotifyEvent *rre;
 	char buf[32], passwd[256], *inputhash;
-	int num, screen, running, failure, oldc;
+	int num, screen, running, failure;
 	unsigned int len, color;
 	KeySym ksym;
 	XEvent ev;
@@ -293,7 +293,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 	len = 0;
 	running = 1;
 	failure = 0;
-	oldc = INIT;
+
 
 	while (running && !XNextEvent(dpy, &ev)) {
 		if (ev.type == KeyPress) {
@@ -364,8 +364,7 @@ readpw(Display *dpy, struct xrandr *rr, struct lock **locks, int nscreens,
 					refresh(dpy, locks[screen]->win,locks[screen]->screen, *localtime(&rawtime),crs[screen],surfaces[screen], 1.0);
 				}
 				pthread_mutex_unlock(&mutex);
-				oldc = color;
-			}
+				}
 		} else if (rr->active && ev.type == rr->evbase + RRScreenChangeNotify) {
 			rre = (XRRScreenChangeNotifyEvent*)&ev;
 			pthread_mutex_lock(&mutex); /*Stop the time refresh thread from interfering.*/
@@ -434,8 +433,8 @@ lockscreen(Display *dpy, struct xrandr *rr, int screen)
 	                          CopyFromParent,
 	                          DefaultVisual(dpy, lock->screen),
 	                          CWOverrideRedirect | CWBackPixel, &wa);
-    if(lock->bgmap)
-        XSetWindowBackgroundPixmap(dpy, lock->win, lock->bgmap);
+	if (lock->bgmap)
+		XSetWindowBackgroundPixmap(dpy, lock->win, lock->bgmap);
 	lock->pmap = XCreateBitmapFromData(dpy, lock->win, curs, 8, 8);
 	invisible = XCreatePixmapCursor(dpy, lock->pmap, lock->pmap,
 	                                &color, &color, 0, 0);
