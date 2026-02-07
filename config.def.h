@@ -32,7 +32,7 @@ static const float datesize=24.0;
 static const double dateoffset=12.0;
 
 /*Lock indicator (Nerd Font padlock) */
-static const char* locktext="\xf3\xb0\x8c\xbe"; /* 󰌾 nf-md-lock */
+static const char* locktext="";
 static const float locksize=32.0;
 static const double lockoffset=20.0;
 
