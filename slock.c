@@ -169,29 +169,41 @@ refreshex(Display *dpy, Window win , int screen, struct tm time, cairo_t* cr, ca
 	XClearWindow(dpy, win);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_BOLD);
 
-	/* Measure all elements to compute bounding box */
+	/* Measure all elements to compute total height for vertical centering */
+	int sh = DisplayHeight(dpy, screen);
+
 	cairo_set_font_size(cr, textsize);
 	cairo_text_extents(cr, tm, &extents);
-	xpos = (sw - extents.width) / 2 - extents.x_bearing + xoff;
-	ypos = (DisplayHeight(dpy, screen) - extents.height) / 2 - extents.y_bearing;
 
 	cairo_set_font_size(cr, datesize);
 	cairo_select_font_face(cr, textfamily, CAIRO_FONT_SLANT_NORMAL, CAIRO_FONT_WEIGHT_NORMAL);
 	cairo_text_extents(cr, datebuf, &dateext);
-	double datey = ypos + dateoffset + dateext.height;
 
-	/* Compute element positions */
-	double doty = 0;
+	double totalh = extents.height + dateoffset + dateext.height;
 	if (pwlen > 0)
-		doty = datey + dateext.height + dotradius * 2 + dotoffset;
-	double capsy = 0;
+		totalh += dotoffset + dotradius * 2;
 	if (hascaps) {
 		cairo_set_font_size(cr, capssize);
 		cairo_text_extents(cr, capstext, &capsext);
+		totalh += capsoffset + capsext.height;
+	}
+
+	/* Position clock at top of centered block */
+	double top = (sh - totalh) / 2.0;
+	xpos = (sw - extents.width) / 2 - extents.x_bearing + xoff;
+	ypos = top + extents.height;
+
+	double datey = ypos + dateoffset + dateext.height;
+
+	double doty = 0;
+	if (pwlen > 0)
+		doty = datey + dotoffset + dotradius;
+	double capsy = 0;
+	if (hascaps) {
 		if (pwlen > 0)
-			capsy = doty + dotradius + dotbgpady + capsoffset + capsext.height;
+			capsy = doty + dotradius + capsoffset + capsext.height;
 		else
-			capsy = datey + dateext.height + capsoffset + capsext.height;
+			capsy = datey + capsoffset + capsext.height;
 	}
 
 	/* Draw fullscreen overlay */

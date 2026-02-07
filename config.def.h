@@ -2,7 +2,7 @@
 static const char *user  = "nobody";
 static const char *group = "nobody";
 /*Font settings for the time text*/
-static const float textsize=96.0;
+static const float textsize=88.0;
 static const char* textfamily="serif";
 static const double textcolorred=255;
 static const double textcolorgreen=255;
