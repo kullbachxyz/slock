@@ -50,8 +50,7 @@ static const double dotbgpadx=12.0;
 static const double dotbgpady=8.0;
 static const double dotbgradius=8.0;
 static const double dotbgalpha=0.4;
-static const double dotcolorinput[]={0.0, 0.33, 0.47};  /* #005577 */
-static const double dotcolorfailed[]={0.8, 0.2, 0.2};   /* #CC3333 */
+static const double dotcolor[]={1.0, 1.0, 1.0};  /* white */
 
 /*Enable blur*/
 #define BLUR
